@@ -3,35 +3,48 @@ package Implementations
 import (
 	"ParkingLot_go/Enums"
 	"errors"
+	"github.com/google/uuid"
+	"math/big"
 )
 
 type ParkingLot struct {
-	totalSlots int
-	slots      []*Slot
-	ID         bool
+	totalSlots   int
+	slots        []*Slot
+	ParkingLotId int
+	notifiables  []Notifiable
+	Owner        *Owner
+	isFull       bool
 }
 
-// Equal method to compare two ParkingLot instances
-func (p *ParkingLot) Equal(other ParkingLot) bool {
-	return p.ID == other.ID // or compare based on other relevant fields
-}
-
-func NewParkingLot(totalSlots int) (*ParkingLot, error) {
+func NewParkingLot(totalSlots int, owner *Owner) *ParkingLot {
 	if totalSlots <= 0 {
-		return nil, errors.New("parking lot size must be positive")
+		panic(errors.New("parking lot size must be positive"))
 	}
+	if owner == nil {
+		panic(errors.New("parking lot cannot be created without an owner"))
+	}
+	uuidValue := uuid.New()
 	lot := &ParkingLot{
-		totalSlots: totalSlots,
-		slots:      make([]*Slot, totalSlots),
+		totalSlots:   totalSlots,
+		Owner:        owner,
+		ParkingLotId: uuidToInt(uuidValue),
+		notifiables:  []Notifiable{},
+		slots:        make([]*Slot, totalSlots),
 	}
 	for i := 0; i < totalSlots; i++ {
-		lot.slots[i] = &Slot{}
+		lot.slots[i] = NewSlot()
 	}
-	return lot, nil
+	return lot
 }
 
-func (p *ParkingLot) findNearestSlot() (*Slot, error) {
-	for _, slot := range p.slots {
+func uuidToInt(u uuid.UUID) int {
+	i := new(big.Int)
+	i.SetString(u.String(), 16)
+	return int(i.Int64())
+}
+
+func (parkinglot *ParkingLot) findNearestSlot() (*Slot, error) {
+	for _, slot := range parkinglot.slots {
 		if slot.IsFree() {
 			return slot, nil
 		}
@@ -39,31 +52,40 @@ func (p *ParkingLot) findNearestSlot() (*Slot, error) {
 	return nil, errors.New("parking lot is full")
 }
 
-func (p *ParkingLot) Park(car Car) (*Ticket, error) {
-	if p.IsFull() {
-		return nil, errors.New("parking lot is full")
+func (parkinglot *ParkingLot) Park(car *Car) *Ticket {
+	if parkinglot.IsFull() {
+		panic(errors.New("parking lot is full"))
 	}
-	if p.IsCarAlreadyParked(car) {
-		return nil, errors.New("car is already parked")
+	if parkinglot.IsCarAlreadyParked(*car) {
+		panic(errors.New("car is already parked"))
 	}
-	slot, err := p.findNearestSlot()
-	if err != nil {
-		return nil, err
+	slot, _ := parkinglot.findNearestSlot()
+	ticket, _ := slot.Park(*car)
+	if parkinglot.IsFull() {
+		parkinglot.isFull = true
+		parkinglot.notifyFull()
 	}
-	return slot.Park(car)
+	return ticket
 }
 
-func (p *ParkingLot) Unpark(ticket *Ticket) (*Car, error) {
-	for _, slot := range p.slots {
-		if car, err := slot.Unpark(ticket); err == nil {
-			return car, nil
+func (parkinglot *ParkingLot) Unpark(ticket *Ticket) (*Car, error) {
+	for _, slot := range parkinglot.slots {
+		car, err := slot.Unpark(ticket)
+		if err == nil {
+			if !parkinglot.IsFull() {
+				parkinglot.isFull = false // Notify availability if it was previously full
+				parkinglot.notifyAvailable()
+			}
+			if car != nil {
+				return car, nil
+			}
 		}
 	}
 	return nil, errors.New("car not found in the parking lot")
 }
 
-func (p *ParkingLot) IsCarAlreadyParked(car Car) bool {
-	for _, slot := range p.slots {
+func (parkinglot *ParkingLot) IsCarAlreadyParked(car Car) bool {
+	for _, slot := range parkinglot.slots {
 		if slot.CheckingCarInParkingSlot(car) {
 			return true
 		}
@@ -71,8 +93,8 @@ func (p *ParkingLot) IsCarAlreadyParked(car Car) bool {
 	return false
 }
 
-func (p *ParkingLot) IsFull() bool {
-	for _, slot := range p.slots {
+func (parkinglot *ParkingLot) IsFull() bool {
+	for _, slot := range parkinglot.slots {
 		if slot.IsFree() {
 			return false
 		}
@@ -80,9 +102,9 @@ func (p *ParkingLot) IsFull() bool {
 	return true
 }
 
-func (p *ParkingLot) CountCarsByColor(color Enums.Color) int {
+func (parkinglot *ParkingLot) CountCarsByColor(color Enums.Color) int {
 	count := 0
-	for _, slot := range p.slots {
+	for _, slot := range parkinglot.slots {
 		if slot.HasCarOfColor(color) {
 			count++
 		}
@@ -90,11 +112,37 @@ func (p *ParkingLot) CountCarsByColor(color Enums.Color) int {
 	return count
 }
 
-func (p *ParkingLot) IsCarWithRegistrationNumberParked(registrationNumber string) (bool, error) {
-	for _, slot := range p.slots {
+func (parkinglot *ParkingLot) IsCarWithRegistrationNumberParked(registrationNumber string) (bool, error) {
+	for _, slot := range parkinglot.slots {
 		if slot.HasCarWithRegistrationNumber(registrationNumber) {
 			return true, nil
 		}
 	}
 	return false, errors.New("car needs registration number")
+}
+
+func (parkinglot *ParkingLot) CountParkedCars() int {
+	count := 0
+	for _, slot := range parkinglot.slots {
+		if !slot.IsFree() {
+			count++
+		}
+	}
+	return count
+}
+
+func (parkinglot *ParkingLot) notifyFull() {
+	for _, notifiable := range parkinglot.notifiables {
+		notifiable.notifyFull(parkinglot.ParkingLotId)
+	}
+}
+
+func (parkinglot *ParkingLot) notifyAvailable() {
+	for _, notifiable := range parkinglot.notifiables {
+		notifiable.notifyAvailable(parkinglot.ParkingLotId)
+	}
+}
+
+func (parkinglot *ParkingLot) RegisterNotifiable(notifiable Notifiable) {
+	parkinglot.notifiables = append(parkinglot.notifiables, notifiable)
 }

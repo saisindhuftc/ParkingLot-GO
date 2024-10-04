@@ -8,207 +8,214 @@ import (
 )
 
 func TestExceptionNewParkingLotIsEmpty(t *testing.T) {
-	_, err := Implementations.NewParkingLot(0)
-	assert.Error(t, err)
-	assert.Equal(t, "parking lot size must be positive", err.Error())
+	owner := Implementations.NewOwner()
+	assert.PanicsWithError(t, "parking lot size must be positive", func() {
+		owner.CreateParkingLot(0)
+	})
 }
 
 func TestExceptionForNegativeParkingSlots(t *testing.T) {
-	_, err := Implementations.NewParkingLot(-1)
-	assert.Error(t, err)
-	assert.Equal(t, "parking lot size must be positive", err.Error())
+	owner := Implementations.NewOwner()
+	assert.PanicsWithError(t, "parking lot size must be positive", func() {
+		owner.CreateParkingLot(-1)
+	})
 }
 
 func TestCreateParkingLotWith5Slots(t *testing.T) {
-	parkingLot, err := Implementations.NewParkingLot(5)
-	assert.NoError(t, err)
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(5)
+
 	assert.NotNil(t, parkingLot)
 }
 
 func TestCannotParkSameCarTwice(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(5)
 	car := Implementations.NewCar("AP-1234", Enums.Red)
 
-	_, err := parkingLot.Park(car)
-	assert.NoError(t, err)
-
-	_, err = parkingLot.Park(car)
-	assert.Error(t, err)
-	assert.Equal(t, "car is already parked", err.Error())
+	parkingLot.Park(&car)
+	assert.PanicsWithError(t, "car is already parked", func() {
+		parkingLot.Park(&car)
+	})
 }
 
-func TestParkingLotWithOneSlotIsFullWhenCarParked(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(1)
+func TestParkingLotIsFullAfterParkingOneCarInOneSlotLot(t *testing.T) {
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(1)
 	car := Implementations.NewCar("AP-1234", Enums.Red)
-	ticket, err := parkingLot.Park(car)
 
-	assert.NoError(t, err)
+	ticket := parkingLot.Park(&car)
 	assert.NotNil(t, ticket)
 	assert.True(t, parkingLot.IsCarAlreadyParked(car))
+	assert.True(t, parkingLot.IsFull())
 }
 
-func TestParkingLotWithTwoSlotsIsNotFullWhenOneCarParked(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(2)
+func TestParkingLotWithTwoSlotsIsNotFullWithOneCarParked(t *testing.T) {
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(2)
 	car := Implementations.NewCar("AP-1431", Enums.Blue)
-	ticket, err := parkingLot.Park(car)
 
-	assert.NoError(t, err)
+	ticket := parkingLot.Park(&car)
 	assert.NotNil(t, ticket)
 	assert.True(t, parkingLot.IsCarAlreadyParked(car))
+	assert.False(t, parkingLot.IsFull())
 }
 
-func TestParkWith5Slots(t *testing.T) {
-	car := Implementations.NewCar("AP-9876", Enums.Black)
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	ticket, err := parkingLot.Park(car)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, ticket)
-	assert.True(t, parkingLot.IsCarAlreadyParked(car))
-}
-
-func TestParkInFullParkingLot(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(1)
+func TestParkingCarInFullParkingLotThrowsError(t *testing.T) {
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(1)
 	firstCar := Implementations.NewCar("AP-1234", Enums.Red)
 	secondCar := Implementations.NewCar("AP-5678", Enums.Blue)
 
-	_, err := parkingLot.Park(firstCar)
-	assert.NoError(t, err)
-
-	_, err = parkingLot.Park(secondCar)
-	assert.Error(t, err)
-	assert.Equal(t, "parking lot is full", err.Error())
+	parkingLot.Park(&firstCar)
+	assert.PanicsWithError(t, "parking lot is full", func() {
+		parkingLot.Park(&secondCar)
+	})
 }
 
 func TestParkInNearestAvailableSlot(t *testing.T) {
+	owner := Implementations.NewOwner()
 	firstCar := Implementations.NewCar("AP-1234", Enums.Red)
 	secondCar := Implementations.NewCar("AP-9999", Enums.Blue)
-	parkingLot, _ := Implementations.NewParkingLot(5)
+	parkingLot := owner.CreateParkingLot(5)
 
-	_, err := parkingLot.Park(firstCar)
-	assert.NoError(t, err)
-
-	_, err = parkingLot.Park(secondCar)
-	assert.NoError(t, err)
+	parkingLot.Park(&firstCar)
+	parkingLot.Park(&secondCar)
 
 	assert.True(t, parkingLot.IsCarAlreadyParked(firstCar))
 	assert.True(t, parkingLot.IsCarAlreadyParked(secondCar))
 }
 
 func TestParkInNearestAvailableSlotAfterUnparking(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
+	owner := Implementations.NewOwner()
+	parkingLot := owner.CreateParkingLot(5)
 	firstCar := Implementations.NewCar("AP-1234", Enums.Red)
 	secondCar := Implementations.NewCar("AP-5678", Enums.Blue)
 	thirdCar := Implementations.NewCar("AP-9999", Enums.Green)
-	firstCarTicket, _ := parkingLot.Park(firstCar)
 
-	_, err := parkingLot.Park(secondCar)
-	assert.NoError(t, err)
+	firstCarTicket := parkingLot.Park(&firstCar)
+	parkingLot.Park(&secondCar)
 
-	_, err = parkingLot.Unpark(firstCarTicket)
-	assert.NoError(t, err)
+	_, err := parkingLot.Unpark(firstCarTicket)
+	assert.Nil(t, err)
 
-	_, err = parkingLot.Park(thirdCar)
-	assert.NoError(t, err)
-
+	parkingLot.Park(&thirdCar)
 	assert.True(t, parkingLot.IsCarAlreadyParked(thirdCar))
 }
 
 func TestUnparkCarThatIsNotParked(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	invalidTicket := Implementations.NewTicket() // Ticket for an empty slot
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	invalidTicket := &Implementations.Ticket{}
 
 	_, err := parkingLot.Unpark(invalidTicket)
-	assert.Error(t, err)
+
+	assert.NotNil(t, err)
 	assert.Equal(t, "car not found in the parking lot", err.Error())
 }
 
 func TestUnparkCarFromEmptyParkingLot(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	invalidTicket := Implementations.NewTicket() // Empty parking lot
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	invalidTicket := &Implementations.Ticket{} // Empty parking lot
 
 	_, err := parkingLot.Unpark(invalidTicket)
-	assert.Error(t, err)
+
+	assert.NotNil(t, err)
 	assert.Equal(t, "car not found in the parking lot", err.Error())
 }
 
 func TestUnpark(t *testing.T) {
-	car := Implementations.NewCar("AP-1234", Enums.Red)
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	ticket, _ := parkingLot.Park(car)
+	owner := &Implementations.Owner{}
+	car := &Implementations.Car{RegistrationNumber: "AP-1234", Color: Enums.Red}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	ticket := parkingLot.Park(car)
+
 	unparkedCar, err := parkingLot.Unpark(ticket)
 
-	assert.NoError(t, err)
-	assert.Equal(t, car, *unparkedCar) // Ensure the correct car is returned
+	assert.Nil(t, err)
+	assert.Equal(t, car, unparkedCar)
 }
 
 func TestCountCarsByRedColorIsNotFoundInParkingLot(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(1)
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(1, owner)
+
 	count := parkingLot.CountCarsByColor(Enums.Red)
 
 	assert.Equal(t, 0, count)
 }
 
 func TestCountCarsByColorNotPresent(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(1)
-	car := Implementations.NewCar("AP-1234", Enums.Blue)
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(1, owner)
+	car := &Implementations.Car{RegistrationNumber: "AP-1234", Color: Enums.Blue}
 
-	_, err := parkingLot.Park(car)
-	assert.NoError(t, err)
+	parkingLot.Park(car)
+
 	assert.Equal(t, 0, parkingLot.CountCarsByColor(Enums.Yellow))
 }
 
+func TestIsCarAlreadyParkedForNonParkedCar(t *testing.T) {
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	car := &Implementations.Car{RegistrationNumber: "AP-1432", Color: Enums.Yellow}
+
+	assert.False(t, parkingLot.IsCarAlreadyParked(*car))
+}
+
+func TestIsParkingLotFull(t *testing.T) {
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(1, owner)
+	car := &Implementations.Car{RegistrationNumber: "AP-4321", Color: Enums.Blue}
+
+	parkingLot.Park(car)
+
+	assert.True(t, parkingLot.IsFull())
+}
+
+func TestIsParkingLotNotFull(t *testing.T) {
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	car := &Implementations.Car{RegistrationNumber: "AP-9876", Color: Enums.Green}
+
+	parkingLot.Park(car)
+
+	assert.False(t, parkingLot.IsFull())
+}
+
 func TestCountCarsByColor(t *testing.T) {
-	firstCar := Implementations.NewCar("AP-1234", Enums.Red)
-	secondCar := Implementations.NewCar("AP-9999", Enums.Red)
-	thirdCar := Implementations.NewCar("AP-0001", Enums.Blue)
-	parkingLot, _ := Implementations.NewParkingLot(5)
+	owner := &Implementations.Owner{}
+	firstCar := &Implementations.Car{RegistrationNumber: "AP-1234", Color: Enums.Red}
+	secondCar := &Implementations.Car{RegistrationNumber: "AP-9999", Color: Enums.Red}
+	thirdCar := &Implementations.Car{RegistrationNumber: "AP-0001", Color: Enums.Blue}
+	parkingLot := Implementations.NewParkingLot(5, owner)
 
-	_, err := parkingLot.Park(firstCar)
-	assert.NoError(t, err)
-
-	_, err = parkingLot.Park(secondCar)
-	assert.NoError(t, err)
-
-	_, err = parkingLot.Park(thirdCar)
-	assert.NoError(t, err)
+	parkingLot.Park(firstCar)
+	parkingLot.Park(secondCar)
+	parkingLot.Park(thirdCar)
 
 	assert.Equal(t, 2, parkingLot.CountCarsByColor(Enums.Red))
 }
 
-func TestIsCarAlreadyParkedForNonParkedCar(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	car := Implementations.NewCar("AP-1432", Enums.Yellow)
-
-	assert.False(t, parkingLot.IsCarAlreadyParked(car)) // Car is not parked
-}
-
-func TestIsParkingLotFull(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(1)
-	car := Implementations.NewCar("AP-4321", Enums.Blue)
-
-	_, err := parkingLot.Park(car)
-	assert.NoError(t, err)
-	assert.True(t, parkingLot.IsFull()) // Parking lot is full after one car is parked
-}
-
-func TestIsParkingLotNotFull(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	car := Implementations.NewCar("AP-9876", Enums.Green)
-
-	_, err := parkingLot.Park(car)
-	assert.NoError(t, err)
-	assert.False(t, parkingLot.IsFull()) // Parking lot is not full
-}
-
 func TestIsCarWithRegistrationNumberParked(t *testing.T) {
-	parkingLot, _ := Implementations.NewParkingLot(5)
-	car := Implementations.NewCar("AP-1234", Enums.Red)
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	car := &Implementations.Car{RegistrationNumber: "AP-1234", Color: Enums.Red}
 
-	_, err := parkingLot.Park(car)
-	assert.NoError(t, err)
+	parkingLot.Park(car)
 
-	isParked, err := parkingLot.IsCarWithRegistrationNumberParked("AP-1234")
-	assert.NoError(t, err)
+	isParked, _ := parkingLot.IsCarWithRegistrationNumberParked("AP-1234")
 	assert.True(t, isParked)
+}
+
+func TestIsCarWithoutRegistrationNumberCannotParked(t *testing.T) {
+	owner := &Implementations.Owner{}
+	parkingLot := Implementations.NewParkingLot(5, owner)
+	car := &Implementations.Car{RegistrationNumber: "", Color: Enums.Red}
+
+	_, err := parkingLot.IsCarWithRegistrationNumberParked(car.RegistrationNumber)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, "car needs registration number", err.Error())
 }

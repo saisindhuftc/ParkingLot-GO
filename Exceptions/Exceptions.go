@@ -9,4 +9,5 @@ var (
 	ErrParkingLotAlreadyAssigned  = errors.New("parking lot already assigned")
 	ErrParkingLotIsFull           = errors.New("parking lot is full")
 	ErrSlotIsOccupied             = errors.New("slot is occupied")
+	ErrCarNotFound                = errors.New("car not found")
 )
