@@ -18,7 +18,7 @@ func NewCar(registrationNumber string, color Enums.Color) Car {
 }
 
 func (c *Car) Equal(other Car) bool {
-	return c.LicensePlate == other.LicensePlate // or compare based on other relevant fields
+	return c.LicensePlate == other.LicensePlate
 }
 
 func (c *Car) IsColor(color Enums.Color) bool {

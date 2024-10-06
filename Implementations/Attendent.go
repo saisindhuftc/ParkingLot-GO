@@ -1,16 +1,15 @@
 package Implementations
 
-import (
-	"errors"
-)
+import "errors"
 
 type Attendent struct {
 	AssignedParkingLots []*ParkingLot
 	ParkedCars          []*Car
 	NextLotStrategy     NextLotStrategy
+	AssignedOwner       *Owner
 }
 
-func NewAttendent(strategy NextLotStrategy) *Attendent {
+func AttendentConstruct(strategy NextLotStrategy) *Attendent {
 	return &Attendent{
 		AssignedParkingLots: []*ParkingLot{},
 		ParkedCars:          []*Car{},
@@ -18,11 +17,25 @@ func NewAttendent(strategy NextLotStrategy) *Attendent {
 	}
 }
 
-func (attendent *Attendent) Assign(parkingLot *ParkingLot) error {
+func AttendentConstructDefault() *Attendent {
+	return &Attendent{
+		AssignedParkingLots: []*ParkingLot{},
+		ParkedCars:          []*Car{},
+		NextLotStrategy:     &NormalNextLotStrategy{},
+	}
+}
+
+func (attendent *Attendent) Assign(parkingLot *ParkingLot, owner *Owner) error {
+	if attendent.AssignedOwner != nil && attendent.AssignedOwner != owner {
+		return errors.New("this parking lot is not owned by the owner")
+	}
 	for _, lot := range attendent.AssignedParkingLots {
 		if lot == parkingLot {
 			return errors.New("parking lot already assigned")
 		}
+	}
+	if attendent.AssignedOwner == nil {
+		attendent.AssignedOwner = owner
 	}
 	attendent.AssignedParkingLots = append(attendent.AssignedParkingLots, parkingLot)
 	return nil
@@ -41,7 +54,7 @@ func (attendent *Attendent) Park(car *Car) (*Ticket, error) {
 		return nil, err
 	}
 
-	ticket := selectedLot.Park(car)
+	ticket, _ := selectedLot.Park(car)
 	attendent.ParkedCars = append(attendent.ParkedCars, car) // Remember to add parked car
 	return ticket, nil
 }

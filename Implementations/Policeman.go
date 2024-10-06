@@ -4,7 +4,7 @@ import "fmt"
 
 type Policeman struct{}
 
-func NewPoliceman() *Policeman {
+func PolicemanConstruct() *Policeman {
 	return &Policeman{}
 }
 

@@ -10,7 +10,7 @@ type Slot struct {
 	ticket *Ticket
 }
 
-func NewSlot() *Slot {
+func SlotConstruct() *Slot {
 	return &Slot{
 		car:    nil,
 		ticket: nil,
@@ -26,7 +26,7 @@ func (s *Slot) Park(car Car) (*Ticket, error) {
 		return nil, errors.New("slot is already occupied")
 	}
 	s.car = &car
-	s.ticket = NewTicket()
+	s.ticket = TicketConstruct()
 	return s.ticket, nil
 }
 

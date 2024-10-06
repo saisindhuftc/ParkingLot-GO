@@ -8,7 +8,7 @@ type Ticket struct {
 	ticketID string
 }
 
-func NewTicket() *Ticket {
+func TicketConstruct() *Ticket {
 	return &Ticket{
 		ticketID: uuid.NewString(),
 	}

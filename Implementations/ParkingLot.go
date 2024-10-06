@@ -2,7 +2,7 @@ package Implementations
 
 import (
 	"ParkingLot_go/Enums"
-	"errors"
+	"ParkingLot_go/Exceptions"
 	"github.com/google/uuid"
 	"math/big"
 )
@@ -16,12 +16,12 @@ type ParkingLot struct {
 	isFull       bool
 }
 
-func NewParkingLot(totalSlots int, owner *Owner) *ParkingLot {
+func ParkingLotConstruct(totalSlots int, owner *Owner) *ParkingLot {
 	if totalSlots <= 0 {
-		panic(errors.New("parking lot size must be positive"))
+		panic(Exceptions.ErrCannotCreateParkingLotException)
 	}
 	if owner == nil {
-		panic(errors.New("parking lot cannot be created without an owner"))
+		panic(Exceptions.ErrParkingLotAlreadyAssigned)
 	}
 	uuidValue := uuid.New()
 	lot := &ParkingLot{
@@ -32,7 +32,7 @@ func NewParkingLot(totalSlots int, owner *Owner) *ParkingLot {
 		slots:        make([]*Slot, totalSlots),
 	}
 	for i := 0; i < totalSlots; i++ {
-		lot.slots[i] = NewSlot()
+		lot.slots[i] = SlotConstruct()
 	}
 	return lot
 }
@@ -49,15 +49,15 @@ func (parkinglot *ParkingLot) findNearestSlot() (*Slot, error) {
 			return slot, nil
 		}
 	}
-	return nil, errors.New("parking lot is full")
+	return nil, Exceptions.ErrParkingLotIsFull
 }
 
-func (parkinglot *ParkingLot) Park(car *Car) *Ticket {
+func (parkinglot *ParkingLot) Park(car *Car) (*Ticket, error) {
 	if parkinglot.IsFull() {
-		panic(errors.New("parking lot is full"))
+		return nil, Exceptions.ErrParkingLotIsFull
 	}
 	if parkinglot.IsCarAlreadyParked(*car) {
-		panic(errors.New("car is already parked"))
+		return nil, Exceptions.ErrCarAlreadyParked
 	}
 	slot, _ := parkinglot.findNearestSlot()
 	ticket, _ := slot.Park(*car)
@@ -65,15 +65,15 @@ func (parkinglot *ParkingLot) Park(car *Car) *Ticket {
 		parkinglot.isFull = true
 		parkinglot.notifyFull()
 	}
-	return ticket
+	return ticket, nil
 }
 
 func (parkinglot *ParkingLot) Unpark(ticket *Ticket) (*Car, error) {
 	for _, slot := range parkinglot.slots {
 		car, err := slot.Unpark(ticket)
 		if err == nil {
-			if !parkinglot.IsFull() {
-				parkinglot.isFull = false // Notify availability if it was previously full
+			if parkinglot.isFull && !parkinglot.IsFull() {
+				parkinglot.isFull = false
 				parkinglot.notifyAvailable()
 			}
 			if car != nil {
@@ -81,7 +81,7 @@ func (parkinglot *ParkingLot) Unpark(ticket *Ticket) (*Car, error) {
 			}
 		}
 	}
-	return nil, errors.New("car not found in the parking lot")
+	return nil, Exceptions.ErrInvalidTicket
 }
 
 func (parkinglot *ParkingLot) IsCarAlreadyParked(car Car) bool {
@@ -113,12 +113,15 @@ func (parkinglot *ParkingLot) CountCarsByColor(color Enums.Color) int {
 }
 
 func (parkinglot *ParkingLot) IsCarWithRegistrationNumberParked(registrationNumber string) (bool, error) {
+	if registrationNumber == "" {
+		return false, Exceptions.ErrCarNeedsRegistrationNumber
+	}
 	for _, slot := range parkinglot.slots {
 		if slot.HasCarWithRegistrationNumber(registrationNumber) {
 			return true, nil
 		}
 	}
-	return false, errors.New("car needs registration number")
+	return false, nil
 }
 
 func (parkinglot *ParkingLot) CountParkedCars() int {
@@ -145,4 +148,8 @@ func (parkinglot *ParkingLot) notifyAvailable() {
 
 func (parkinglot *ParkingLot) RegisterNotifiable(notifiable Notifiable) {
 	parkinglot.notifiables = append(parkinglot.notifiables, notifiable)
+}
+
+func (parkinglot *ParkingLot) GetParkingLotId() int {
+	return parkinglot.ParkingLotId
 }

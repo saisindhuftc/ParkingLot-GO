@@ -1,6 +1,7 @@
 package Implementations
 
 import (
+	"ParkingLot_go/Exceptions"
 	"errors"
 	"fmt"
 )
@@ -8,40 +9,62 @@ import (
 type Owner struct {
 	Attendents       []*Attendent
 	OwnerParkingLots []*ParkingLot
+	notifiables      []Notifiable
 	Attendent
 }
 
-func NewOwner() *Owner {
+func OwnerConstruct() *Owner {
 	return &Owner{
 		Attendents:       []*Attendent{},
 		OwnerParkingLots: []*ParkingLot{},
+		Attendent:        *AttendentConstructDefault(),
 	}
 }
 
 func (owner *Owner) CreateParkingLot(totalSlots int) *ParkingLot {
-	parkingLot := NewParkingLot(totalSlots, owner)
+	if totalSlots <= 0 {
+		panic(Exceptions.ErrCannotCreateParkingLotException)
+	}
+	parkingLot := ParkingLotConstruct(totalSlots, owner)
 	parkingLot.RegisterNotifiable(owner)
 	owner.OwnerParkingLots = append(owner.OwnerParkingLots, parkingLot)
 	return parkingLot
 }
 
 func (owner *Owner) AssignParkingLotToAttendent(attendent *Attendent, parkingLot *ParkingLot) error {
+	isOwnedByThisOwner := false
 	for _, ownerLot := range owner.OwnerParkingLots {
 		if ownerLot == parkingLot {
-			attendent.AssignedParkingLots = append(attendent.AssignedParkingLots, parkingLot)
-			return nil
+			isOwnedByThisOwner = true
+			break
 		}
 	}
-	return errors.New("this parking lot is not owned by the owner")
+	if !isOwnedByThisOwner {
+		return errors.New("this parking lot is not owned by the owner")
+	}
+	return attendent.Assign(parkingLot, owner)
 }
 
 func (owner *Owner) AssignParkingLotToSelf(parkingLot *ParkingLot) error {
 	for _, ownerLot := range owner.OwnerParkingLots {
 		if ownerLot == parkingLot {
-			return owner.Assign(parkingLot)
+			return owner.Assign(parkingLot, owner)
 		}
 	}
 	return errors.New("this parking lot is not owned by this owner")
+}
+
+func contains(lots []*ParkingLot, lot *ParkingLot) bool {
+	for _, item := range lots {
+		if item == lot {
+			return true
+		}
+	}
+	return false
+}
+
+func (owner *Owner) RegisterNotifiable(parkingLot *ParkingLot, notifiable Notifiable) {
+	parkingLot.RegisterNotifiable(notifiable)
 }
 
 func (owner *Owner) notifyFull(parkingLotId int) {
