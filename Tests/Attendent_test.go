@@ -211,10 +211,8 @@ func TestUnparkIfTicketIsInvalidForSecondParkingLot(t *testing.T) {
 
 	ticket, _ := attendent.Park(secondCar)
 
-	// Unpark the second car
 	attendent.Unpark(ticket)
 
-	// Trying to unpark the second car again should return an error
 	_, err := attendent.Unpark(ticket)
 	assert.Error(t, err, Exceptions.ErrCarNotFound)
 }
